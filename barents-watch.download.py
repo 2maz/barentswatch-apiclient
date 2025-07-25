@@ -58,8 +58,11 @@ with session.get(url=api_url, headers=headers, stream=True) as response:
             day = timestamp.strftime("%Y_%m_%d")
             filename = f"AIS_{day}.csv"
 
+            if timestamp.tzinfo is None:
+                timestamp = timestamp.replace(tzinfo=dt.timezone.utc)
+
             # considering maximum 2h delay of filename
-            if len(open_files) == 2 and (dt.datetime.now() - timestamp).total_seconds() > 7200:
+            if len(open_files) == 2 and (dt.datetime.now(dt.timezone.utc) - timestamp).total_seconds() > 7200:
                 prev_day_filename = sorted(open_files.keys())[0]
                 del open_files[prev_day_filename]
 
