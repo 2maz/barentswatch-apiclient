@@ -6,7 +6,7 @@ The script in this repository allows to collect AIS messages send via the barent
 
 Create an account and register a client (see http://developer.barentswatch.no/docs/appreg).
 
-Fill in the details, i.e. CLIENT_ID and CLIENT_SECRET in barents-watch.token.sh.
+Fill in the details, i.e. BARENTS_WATCH_CLIENT_ID and BARENTS_WATCH_CLIENT_SECRET in barents-watch.token.sh.
 
 ```
 source barents-watch.token.sh
