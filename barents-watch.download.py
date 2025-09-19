@@ -26,6 +26,20 @@ access_token = os.environ['BARENTS_WATCH_ACCESS_TOKEN']
 open_files = {}
 last_day = None
 
+timeout_in_s = 0
+
+def wait_for_timeout():
+    global timeout_in_s
+
+    # continued calls to timeout shall increase wait time
+    timeout_in_s += 5
+    time.sleep(timeout_in_s)
+
+def reset_timeout():
+    global timeout_in_s
+
+    timeout_in_s = 0
+
 def acquire_token():
     if not 'BARENTS_WATCH_CLIENT_ID' in os.environ:
         raise ValueError("Missing BARENTS_WATCH_CLIENT_ID in env")
@@ -120,8 +134,12 @@ while True:
     try:
         token = acquire_token()
         get_data(token['access_token'], int(token['expires_in']))
+        reset_timeout()
     except RuntimeError as e:
         if "Timeout" in f"{e}":
             pass
         else:
             raise
+    except Exception as e:
+        logger.warning(f"Protocol Error: {e}")
+        wait_for_timeout()
