@@ -36,6 +36,7 @@ dependencies = [
     "pandas",
     "pydantic",
     "pydantic-settings",
+    "tqdm"
 ]
 
 [project.urls]
@@ -47,7 +48,7 @@ repository = "https://github.com/2maz/barentswatch-apiclient"
 
 dev = [
     "isort",
-    "jupyter-book",
+    "jupyter-book<2",
     "pre-commit",
     "ruff",
     "sphinx-autoapi",
