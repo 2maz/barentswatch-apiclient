@@ -14,7 +14,7 @@ source barents-watch.token.sh
 python3 -m venv venv-barents-watch
 . venv-barents-watch/bin/activate
 
-pip install requests
+pip install requests pandas
 ``` 
 
 ## Usage

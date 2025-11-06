@@ -1,0 +1,13 @@
+*.pyc
+*.swp
+
+dist/
+build/
+
+*egg-info
+__pycache__
+
+docs/_build/
+docs/_autosummary
+
+artifacts
