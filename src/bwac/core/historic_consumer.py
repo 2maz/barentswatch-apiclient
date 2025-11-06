@@ -2,7 +2,6 @@ import requests
 import datetime as dt
 import logging
 from pathlib import Path
-import re
 
 from bwac.core.access import Access
 from bwac.utils import timestamp_to_txt, read_timestamp
@@ -11,66 +10,66 @@ from bwac.core.constants import BARENTS_WATCH_HISTORIC_AIS_URL
 logger = logging.getLogger(__name__)
 
 NorwayAreas = {
-    'oslofjord': [
-          [ 10.78513402370703, 60.04379058117593 ],
-          [ 8.485531852850272, 58.39420052653966 ],
-          [ 11.916990764085625, 57.99527628511697 ],
-          [ 10.78513402370703, 60.04379058117593 ],
+    "oslofjord": [
+        [10.78513402370703, 60.04379058117593],
+        [8.485531852850272, 58.39420052653966],
+        [11.916990764085625, 57.99527628511697],
+        [10.78513402370703, 60.04379058117593],
     ],
-    'kristansand': [
-          [ 8.788368985577478, 58.45856375238054 ],
-          [ 7.402608851068976, 58.097568609887674 ],
-          [ 5.205595635308214, 59.5310111553066 ],
-          [ 4.55864740243436, 58.049283977921164 ],
-          [ 7.20790355532597, 57.37263176906313 ],
-          [ 9.066301644869213, 57.715026939005014 ],
-          [ 11.135700681029675, 58.06657367224307 ],
-          [ 8.788368985577478, 58.45856375238054 ]
+    "kristansand": [
+        [8.788368985577478, 58.45856375238054],
+        [7.402608851068976, 58.097568609887674],
+        [5.205595635308214, 59.5310111553066],
+        [4.55864740243436, 58.049283977921164],
+        [7.20790355532597, 57.37263176906313],
+        [9.066301644869213, 57.715026939005014],
+        [11.135700681029675, 58.06657367224307],
+        [8.788368985577478, 58.45856375238054],
     ],
-    'bergen': [
-        [ 4.6321728329088785, 58.04890895224662 ],
-        [ 5.761107517734729, 60.30826803703246 ],
-        [ 5.681307155682532, 62.386568767188464 ],
-        [ 1.9260540592790107, 62.67776718981398 ],
-        [ 3.0723122559526246, 58.416766407950746 ],
-        [ 4.6321728329088785, 58.04890895224662 ]
+    "bergen": [
+        [4.6321728329088785, 58.04890895224662],
+        [5.761107517734729, 60.30826803703246],
+        [5.681307155682532, 62.386568767188464],
+        [1.9260540592790107, 62.67776718981398],
+        [3.0723122559526246, 58.416766407950746],
+        [4.6321728329088785, 58.04890895224662],
     ],
-    'trondheim': [
-            [ 6.796506215553421, 61.93767633492155 ],
-            [ 11.503743066105784, 63.58097410048643 ],
-            [ 14.791179837684268, 66.09504181342487 ],
-            [ 8.804768906126242, 67.8189857381185 ],
-            [ 1.8414412798037176, 62.578987087184686 ],
-            [ 6.796506215553421, 61.93767633492155 ]
+    "trondheim": [
+        [6.796506215553421, 61.93767633492155],
+        [11.503743066105784, 63.58097410048643],
+        [14.791179837684268, 66.09504181342487],
+        [8.804768906126242, 67.8189857381185],
+        [1.8414412798037176, 62.578987087184686],
+        [6.796506215553421, 61.93767633492155],
     ],
-    'tromso': [
-        [ 13.810483752093603, 66.43955348356758 ],
-        [ 26.396269200113153, 71.04012248863856 ],
-        [ 22.71800778191661, 74.1531163819613 ],
-        [ 8.741433850611514, 67.80319094612682 ],
-        [ 13.810483752093603, 66.43955348356758 ]
+    "tromso": [
+        [13.810483752093603, 66.43955348356758],
+        [26.396269200113153, 71.04012248863856],
+        [22.71800778191661, 74.1531163819613],
+        [8.741433850611514, 67.80319094612682],
+        [13.810483752093603, 66.43955348356758],
     ],
-	'kirkenes':[
-		  [ 25.588095993156713, 69.90444227909268 ],
-          [ 35.400112953391414, 68.92683633946493 ],
-          [ 40.89486387325269, 71.28390007220128 ],
-          [ 22.377837588569946, 74.16061101130416 ],
-          [ 25.588095993156713, 69.90444227909268 ]
-	],
-    'svalbard': [
-            [ 10.157534116271336, 75.8238393574249 ],
-            [ 31.157552478958053, 76.15256213539797 ],
-            [ 40.95139600732108, 81.67326805583411 ],
-            [ -3.6363860380758126, 82.09089410875563 ],
-            [ 10.157534116271336, 75.8238393574249 ]
-          ],
-    'towards_svalbard': [
-          [ 10.286234445195845, 75.80107897451381 ],
-          [ 14.385918334661511, 70.77752104452009 ],
-          [ 29.225915286853052, 73.17210224387776 ],
-          [ 31.40794841353042, 76.29976102841684 ],
-          [ 10.286234445195845, 75.80107897451381 ],
-    ]
+    "kirkenes": [
+        [25.588095993156713, 69.90444227909268],
+        [35.400112953391414, 68.92683633946493],
+        [40.89486387325269, 71.28390007220128],
+        [22.377837588569946, 74.16061101130416],
+        [25.588095993156713, 69.90444227909268],
+    ],
+    "svalbard": [
+        [10.157534116271336, 75.8238393574249],
+        [31.157552478958053, 76.15256213539797],
+        [40.95139600732108, 81.67326805583411],
+        [-3.6363860380758126, 82.09089410875563],
+        [10.157534116271336, 75.8238393574249],
+    ],
+    "towards_svalbard": [
+        [10.286234445195845, 75.80107897451381],
+        [14.385918334661511, 70.77752104452009],
+        [29.225915286853052, 73.17210224387776],
+        [31.40794841353042, 76.29976102841684],
+        [10.286234445195845, 75.80107897451381],
+    ],
 }
 
 
@@ -84,27 +83,27 @@ class HistoricConsumer:
         mmsis = set()
         for name, area in NorwayAreas.items():
             areas_mmsis = self.query_mmsis_in_area(
-                    from_date=from_date,
-                    to_date=to_date,
-                    area=area
+                from_date=from_date, to_date=to_date, area=area
             )
             mmsis = mmsis.union(areas_mmsis)
         return sorted(list(mmsis))
 
-    def query_mmsis_in_area(self,
-            from_date: str,
-            to_date: str,
-            area: list[list[float]]
-        ):
+    def query_mmsis_in_area(
+        self, from_date: str, to_date: str, area: list[list[float]]
+    ):
         self.access.acquire()
-        
-        query_data = self.prepare_query_data(from_date=from_date, to_date=to_date, area=area)
-        response = requests.post(BARENTS_WATCH_HISTORIC_AIS_URL + "/mmsiinarea",
-                json=query_data,
-                headers={
-                    "Authorization": f"Bearer {self.access.access_token}",
-                    "Content-Type": "application/json"
-                })
+
+        query_data = self.prepare_query_data(
+            from_date=from_date, to_date=to_date, area=area
+        )
+        response = requests.post(
+            BARENTS_WATCH_HISTORIC_AIS_URL + "/mmsiinarea",
+            json=query_data,
+            headers={
+                "Authorization": f"Bearer {self.access.access_token}",
+                "Content-Type": "application/json",
+            },
+        )
 
         if response.status_code != 200:
             logger.warning(response.content)
@@ -114,11 +113,14 @@ class HistoricConsumer:
 
     def query_track(self, mmsi: int, from_date: dt.datetime, to_date: dt.datetime):
         self.access.acquire()
-        response = requests.get(BARENTS_WATCH_HISTORIC_AIS_URL + f"/tracks/{mmsi}/{from_date.isoformat()}/{to_date.isoformat()}",
-                headers={
-                    "Authorization": f"Bearer {self.access.access_token}",
-                    "Content-Type": "application/json"
-                })
+        response = requests.get(
+            BARENTS_WATCH_HISTORIC_AIS_URL
+            + f"/tracks/{mmsi}/{from_date.isoformat()}/{to_date.isoformat()}",
+            headers={
+                "Authorization": f"Bearer {self.access.access_token}",
+                "Content-Type": "application/json",
+            },
+        )
 
         if response.status_code != 200:
             logger.warning(response.__dict__)
@@ -126,23 +128,17 @@ class HistoricConsumer:
 
         return response.json()
 
-
     def prepare_query_data(self, from_date, to_date, area):
-        return { 
-            'polygon': {
-                'coordinates': [
-                    area
-                ],
-                'type': 'Polygon'
-            },
-            'msgTimeFrom': timestamp_to_txt(from_date),
-            'msgTimeTo': timestamp_to_txt(to_date)
+        return {
+            "polygon": {"coordinates": [area], "type": "Polygon"},
+            "msgTimeFrom": timestamp_to_txt(from_date),
+            "msgTimeTo": timestamp_to_txt(to_date),
         }
 
     def save_track(self, track: list[dict[str, any]], output_dir: str | Path):
         # reverse timeorder
         for data in reversed(track):
-            timestamp = read_timestamp(data['msgtime'])
+            timestamp = read_timestamp(data["msgtime"])
 
             day = timestamp.strftime("%Y_%m_%d")
 
@@ -159,11 +155,10 @@ class HistoricConsumer:
             if not path.exists():
                 write_header = True
 
-            with open(path, 'a') as fp:
+            with open(path, "a") as fp:
                 if write_header:
-                    header = ','.join(data.keys())
+                    header = ",".join(data.keys())
                     fp.write(f"{header}\n")
 
-                values = ','.join([str(x) for x in data.values()])
+                values = ",".join([str(x) for x in data.values()])
                 fp.write(f"{values}\n")
-

@@ -8,14 +8,16 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+
 class LivestreamParser(BaseParser):
     def __init__(self, parser: ArgumentParser):
         super().__init__(parser=parser)
 
-        parser.add_argument("--output-dir",
-                type=str,
-                default=str(Path()),
-                help=f"Output directory to use"
+        parser.add_argument(
+            "--output-dir",
+            type=str,
+            default=str(Path()),
+            help="Output directory to use",
         )
 
     def execute(self, args):

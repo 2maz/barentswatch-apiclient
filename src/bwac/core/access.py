@@ -5,19 +5,18 @@ import logging
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from bwac.core.constants import (
-    BARENTS_WATCH_TOKEN_URL
-)
+from bwac.core.constants import BARENTS_WATCH_TOKEN_URL
 
 logger = logging.getLogger(__name__)
 
+
 class BarentsWatchSettings(BaseSettings):
     model_config = SettingsConfigDict(
-                    env_file='.env',
-                    env_nested_delimiter='_',
-                    env_prefix='BARENTS_WATCH_',
-                    extra='ignore'
-                )
+        env_file=".env",
+        env_nested_delimiter="_",
+        env_prefix="BARENTS_WATCH_",
+        extra="ignore",
+    )
 
     client_id: str
     client_secret: str
@@ -41,18 +40,17 @@ class Access:
             logger.debug("Access.acquire: no renewal required")
             return
 
-        response = requests.post(BARENTS_WATCH_TOKEN_URL,
+        response = requests.post(
+            BARENTS_WATCH_TOKEN_URL,
             data={
                 "client_id": self.config.client_id,
                 "client_secret": self.config.client_secret,
                 "scope": self.config.scope,
-                "grant_type": self.config.grant_type
+                "grant_type": self.config.grant_type,
             },
-            headers={
-                'Content-Type': 'application/x-www-form-urlencoded'
-            }
+            headers={"Content-Type": "application/x-www-form-urlencoded"},
         )
-        
+
         now = dt.datetime.now(tz=dt.timezone.utc)
         self._token = response.json()
 
@@ -69,9 +67,9 @@ class Access:
     @property
     def access_token(self):
         self.ensure_token()
-        return self._token['access_token']
+        return self._token["access_token"]
 
     @property
     def expires_in(self):
         self.ensure_token()
-        return int(self._token['expires_in'])
+        return int(self._token["expires_in"])
