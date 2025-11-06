@@ -1,0 +1,32 @@
+name: test
+on:
+  push:
+    paths-ignore:
+      - '**/*.md'
+
+jobs:
+  unittests:
+    strategy:
+      matrix:
+        os: [ubuntu-latest]
+        package: ["bwac"]
+        python-version: ["3.10","3.11","3.12"]
+      fail-fast: false
+    runs-on:  ${{ matrix.os }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install tox
+        run: python -m pip install tox
+
+      - name: Test default
+        env:
+          BARENTS_WATCH_CLIENT_ID: ${{ secrets.BARENTS_WATCH_CLIENT_ID }}
+          BARENTS_WATCH_CLIENT_SECRET: ${{ secrets.BARENTS_WATCH_CLIENT_SECRET }}
+        run: tox
