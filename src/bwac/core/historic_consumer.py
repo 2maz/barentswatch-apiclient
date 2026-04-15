@@ -2,6 +2,7 @@ import requests
 import datetime as dt
 import logging
 from pathlib import Path
+import subprocess
 
 from bwac.core.access import Access
 from bwac.utils import timestamp_to_txt, read_timestamp
@@ -9,6 +10,8 @@ from bwac.core.constants import BARENTS_WATCH_HISTORIC_AIS_URL
 
 logger = logging.getLogger(__name__)
 
+# TODO: current areas have been coarsly defined with geojson.io
+# 
 NorwayAreas = {
     "oslofjord": [
         [10.78513402370703, 60.04379058117593],
@@ -70,6 +73,13 @@ NorwayAreas = {
         [31.40794841353042, 76.29976102841684],
         [10.286234445195845, 75.80107897451381],
     ],
+    "jan_mayen": [
+		[ -14.971616256294766, 73.13171972743322 ],
+		[ -14.971616256294766, 68.54058349103877 ],
+		[ 0.7618894059746992, 68.54058349103877 ],
+		[ 0.7618894059746992, 73.13171972743322 ],
+		[ -14.971616256294766, 73.13171972743322 ]
+    ]
 }
 
 
@@ -136,6 +146,8 @@ class HistoricConsumer:
         }
 
     def save_track(self, track: list[dict[str, any]], output_dir: str | Path):
+        last_message_timestamps = {}
+
         # reverse timeorder
         for data in reversed(track):
             timestamp = read_timestamp(data["msgtime"])
@@ -147,6 +159,19 @@ class HistoricConsumer:
                 output_dir.mkdir(parents=True, exist_ok=True)
 
             path = output_dir / f"AIS_{day}_{data['mmsi']}.csv"
+            if path not in last_message_timestamps:
+                msgtime_idx = list(data.keys()).index("msgtime")
+
+                if path.exists():
+                    f = subprocess.run(["tail", "-n", "1", path], stdout=subprocess.PIPE)
+                    last_msg_time = read_timestamp( f.stdout.decode('UTF-8').strip().split(",")[msgtime_idx] )
+                    last_message_timestamps[path] = last_msg_time
+                else:
+                    last_message_timestamps[path] = timestamp - dt.timedelta(seconds=1)
+
+            if last_message_timestamps[path] > timestamp:
+                # skip existing messages
+                continue
 
             if timestamp.tzinfo is None:
                 timestamp = timestamp.replace(tzinfo=dt.timezone.utc)
@@ -162,3 +187,5 @@ class HistoricConsumer:
 
                 values = ",".join([str(x) for x in data.values()])
                 fp.write(f"{values}\n")
+
+                last_message_timestamps[path] = timestamp
