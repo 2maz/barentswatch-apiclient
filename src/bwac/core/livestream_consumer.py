@@ -1,6 +1,7 @@
 import requests
 import json
 import time
+import csv
 import datetime as dt
 from pathlib import Path
 
@@ -74,19 +75,17 @@ class LivestreamConsumer:
                         prev_day_filename = sorted(open_files.keys())[0]
                         del open_files[prev_day_filename]
 
+                    
                     if path not in open_files:
-                        write_header = False
-                        if not path.exists():
-                            write_header = True
-
-                        fp = open(path, "a")
-                        open_files[path] = fp
+                        write_header = not path.exists()
+                        fp = open(path, "a", newline="")
+                        writer = csv.DictWriter(fp, fieldnames=list(data.keys()), quoting=csv.QUOTE_MINIMAL)
+                        open_files[path] = (fp, writer)
                         if write_header:
-                            header = ",".join(data.keys())
-                            fp.write(f"{header}\n")
+                            writer.writeheader()
 
-                    values = ",".join([str(x) for x in data.values()])
-                    open_files[path].write(f"{values}\n")
+                    fp, writer = open_files[path]
+                    writer.writerow(data)
 
                     delta_time = (dt.datetime.now() - start_time).total_seconds()
                     print(
