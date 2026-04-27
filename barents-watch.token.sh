@@ -20,4 +20,3 @@ echo $BARENTS_WATCH_ACCESS_TOKEN
 # Streaming request
 #curl --location --request GET 'https://live.ais.barentswatch.no/v1/latest/combined' \
 #    --header "Authorization: Bearer $BARENTS_WATCH_ACCESS_TOKEN"
-

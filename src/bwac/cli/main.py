@@ -1,14 +1,13 @@
-from argparse import ArgumentParser
-import sys
 import logging
+import sys
+import traceback as tb
+from argparse import ArgumentParser
 from logging import basicConfig, getLogger
 
-from bwac.cli.base import BaseParser
-from bwac.cli.livestream import LivestreamParser
-from bwac.cli.historic import HistoricParser
-
 from bwac import __version__
-import traceback as tb
+from bwac.cli.base import BaseParser
+from bwac.cli.historic import HistoricParser
+from bwac.cli.livestream import LivestreamParser
 
 logger = getLogger(__name__)
 logger.setLevel(logging.INFO)

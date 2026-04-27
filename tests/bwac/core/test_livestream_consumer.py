@@ -2,19 +2,20 @@ import csv
 import json
 from pathlib import Path
 from unittest.mock import MagicMock, patch
+
 import pytest
+
 from bwac.core.livestream_consumer import LivestreamConsumer, open_files
 
-
 BASE = {
-    "courseOverGround": 42.9, 
-    "latitude": 59.729342, 
+    "courseOverGround": 42.9,
+    "latitude": 59.729342,
     "longitude": 5.481622,
-    "rateOfTurn": 0, 
-    "shipType": 30, 
+    "rateOfTurn": 0,
+    "shipType": 30,
     "speedOverGround": 12.1,
-    "trueHeading": 42, 
-    "navigationalStatus": 0, 
+    "trueHeading": 42,
+    "navigationalStatus": 0,
     "mmsi": 257719900,
     "msgtime": "2026-04-20T00:00:00+00:00",
 }
@@ -43,7 +44,7 @@ def run_consumer(tmp_path: Path, messages: list[dict]) -> Path:
     out = tmp_path / "AIS_2026_04_20.csv"
     assert out.exists(), "the expected output .csv-file was not created"
     return out
-    
+
 
 @pytest.mark.parametrize(
     ["label", "name"],

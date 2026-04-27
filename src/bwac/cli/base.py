@@ -6,7 +6,6 @@ of subparsers.
 import argparse
 from abc import ABC, abstractmethod
 from argparse import ArgumentParser
-
 from logging import Logger, getLogger
 
 logger: Logger = getLogger(__name__)

@@ -1,10 +1,9 @@
+import logging
 from argparse import ArgumentParser
 from pathlib import Path
 
 from bwac.cli.base import BaseParser
 from bwac.core.livestream_consumer import LivestreamConsumer
-
-import logging
 
 logger = logging.getLogger(__name__)
 

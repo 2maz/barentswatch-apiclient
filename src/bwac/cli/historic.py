@@ -1,6 +1,7 @@
-from pathlib import Path
-from argparse import ArgumentParser
 import datetime as dt
+from argparse import ArgumentParser
+from pathlib import Path
+
 from tqdm import tqdm
 
 from bwac.cli.base import BaseParser

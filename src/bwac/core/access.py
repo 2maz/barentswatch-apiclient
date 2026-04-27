@@ -1,7 +1,7 @@
-import requests
 import datetime as dt
 import logging
 
+import requests
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
