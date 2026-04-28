@@ -15,18 +15,18 @@ python3 -m venv venv-barents-watch
 . venv-barents-watch/bin/activate
 
 pip install requests pandas
-``` 
+```
 
 ## Usage
 To download data from the livestream by creating daily CSV files of the format AIS_YYYY_mm_dd.csv use
 
-``` 
+```
 $> bwac live
 ```
 
 To retrieve data from the historic api for a specific timeframe, which can be a maximum of 14 days in the past:
 
-``` 
+```
 $> bwac historic --from-date 2026-04-14T00:00:00+00:00 --to-date 2026-04-15T23:59:59+00:00
 
 ```
@@ -45,4 +45,3 @@ All data is provided by the live AIS API from [barentswatch.no](https://develope
 
 The development of this client is part of the EU-project [AI4COPSEC](https://ai4copsec.eu) which receives funding
  from the Horizon Europe framework programme under Grant Agreement N. 101190021.
-

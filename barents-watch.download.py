@@ -1,14 +1,13 @@
-import requests
-import pandas as pd
+import datetime as dt
 import json
-import time
+import logging
 import os
 import re
-import datetime as dt
+import time
 from pathlib import Path
-import json
 
-import logging
+import pandas as pd
+import requests
 
 logger = logging.getLogger(__name__)
 
@@ -48,7 +47,7 @@ def acquire_token():
 
     client_id = os.environ["BARENTS_WATCH_CLIENT_ID"]
     client_secret = os.environ["BARENTS_WATCH_CLIENT_SECRET"]
-    
+
     headers = {
         'Content-Type': 'application/x-www-form-urlencoded'
     }
@@ -128,7 +127,7 @@ def get_data(access_token: str, timeout_in_s: int = 3500):
                 delta_time = (dt.datetime.now() - start_time).total_seconds()
                 print(f"Processed {idx} message - current day: {day} -- (token used since: {int(delta_time)} s, renewal after: {timeout_in_s} s)", end="\r")
                 if  delta_time >= timeout_in_s:
-                    raise RuntimeError(f"Timeout after {timeout_in_s} seconds") 
+                    raise RuntimeError(f"Timeout after {timeout_in_s} seconds")
 
 while True:
     try:

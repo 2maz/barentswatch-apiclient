@@ -1,17 +1,18 @@
-import requests
 import datetime as dt
 import logging
-from pathlib import Path
 import subprocess
+from pathlib import Path
+
+import requests
 
 from bwac.core.access import Access
-from bwac.utils import timestamp_to_txt, read_timestamp
 from bwac.core.constants import BARENTS_WATCH_HISTORIC_AIS_URL
+from bwac.utils import read_timestamp, timestamp_to_txt
 
 logger = logging.getLogger(__name__)
 
 # TODO: current areas have been coarsly defined with geojson.io
-# 
+#
 NorwayAreas = {
     "oslofjord": [
         [10.78513402370703, 60.04379058117593],

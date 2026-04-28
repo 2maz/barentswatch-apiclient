@@ -1,13 +1,14 @@
-import requests
-import json
-import time
 import csv
 import datetime as dt
+import json
+import logging
+import time
 from pathlib import Path
 
-import logging
-from bwac.core.constants import BARENTS_WATCH_LIVE_AIS_URL
+import requests
+
 from bwac.core.access import Access
+from bwac.core.constants import BARENTS_WATCH_LIVE_AIS_URL
 from bwac.utils import read_timestamp
 
 logger = logging.getLogger(__name__)
@@ -75,7 +76,7 @@ class LivestreamConsumer:
                         prev_day_filename = sorted(open_files.keys())[0]
                         del open_files[prev_day_filename]
 
-                    
+
                     if path not in open_files:
                         write_header = not path.exists()
                         fp = open(path, "a", newline="")
