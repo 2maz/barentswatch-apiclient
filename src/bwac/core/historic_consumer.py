@@ -75,12 +75,12 @@ NorwayAreas = {
         [10.286234445195845, 75.80107897451381],
     ],
     "jan_mayen": [
-		[ -14.971616256294766, 73.13171972743322 ],
-		[ -14.971616256294766, 68.54058349103877 ],
-		[ 0.7618894059746992, 68.54058349103877 ],
-		[ 0.7618894059746992, 73.13171972743322 ],
-		[ -14.971616256294766, 73.13171972743322 ]
-    ]
+        [-14.971616256294766, 73.13171972743322],
+        [-14.971616256294766, 68.54058349103877],
+        [0.7618894059746992, 68.54058349103877],
+        [0.7618894059746992, 73.13171972743322],
+        [-14.971616256294766, 73.13171972743322],
+    ],
 }
 
 
@@ -164,8 +164,12 @@ class HistoricConsumer:
                 msgtime_idx = list(data.keys()).index("msgtime")
 
                 if path.exists():
-                    f = subprocess.run(["tail", "-n", "1", path], stdout=subprocess.PIPE)
-                    last_msg_time = read_timestamp( f.stdout.decode('UTF-8').strip().split(",")[msgtime_idx] )
+                    f = subprocess.run(
+                        ["tail", "-n", "1", path], stdout=subprocess.PIPE
+                    )
+                    last_msg_time = read_timestamp(
+                        f.stdout.decode("UTF-8").strip().split(",")[msgtime_idx]
+                    )
                     last_message_timestamps[path] = last_msg_time
                 else:
                     last_message_timestamps[path] = timestamp - dt.timedelta(seconds=1)
