@@ -52,7 +52,11 @@ class LivestreamConsumer:
 
         start_time = dt.datetime.now()
         with session.get(
-            url=BARENTS_WATCH_LIVE_AIS_URL, headers=headers, stream=True
+            url=BARENTS_WATCH_LIVE_AIS_URL, headers=headers, stream=True,
+            params={
+                "modelType": "Full",
+                "modelFormat": "Json",
+            }
         ) as response:
             for idx, line in enumerate(response.iter_lines()):
                 if line:
