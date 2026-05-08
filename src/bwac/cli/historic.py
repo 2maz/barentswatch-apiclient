@@ -47,7 +47,7 @@ class HistoricParser(BaseParser):
             from_date, to_date = interval
 
             mmsis = consumer.query_all_mmsis(from_date, to_date)
-            for mmsi in tqdm(mmsis):
+            for mmsi in tqdm(mmsis, desc=f"From {from_date} -- {to_date}"):
                 track = consumer.query_track(
                     mmsi=mmsi, from_date=from_date, to_date=to_date
                 )
