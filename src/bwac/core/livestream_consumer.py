@@ -15,24 +15,26 @@ logger = logging.getLogger(__name__)
 
 # Example data: b{"courseOverGround":268,"latitude":66.004573,"longitude":8.029767,"name":"TRANSOCEAN ENCOURAGE","rateOfTurn":-3,"shipType":90,"speedOverGround":0,"trueHeading":225,"navigationalStatus":3,"mmsi":258627000,"msgtime":"2025-07-24T10:14:50+00:00"}'
 
-open_files = {}
-last_day = None
-
-timeout_in_s = 0
-
-
 class LivestreamConsumer:
     timeout_in_s: int
+    open_files: dict[str, any]
 
     def __init__(self):
         self.timeout_in_s = 0
+        self.open_files = {}
 
     def wait_for_timeout(self):
+        """
+        Create a timeout that increase on recurrent failure
+        """
         # continued calls to timeout shall increase wait time
         self.timeout_in_s += 5
         time.sleep(self.timeout_in_s)
 
     def reset_timeout(self):
+        """
+        Reset the length of the timeout after succesful reconnection
+        """
         self.timeout_in_s = 0
 
     def get_data(
@@ -71,26 +73,28 @@ class LivestreamConsumer:
 
                     # considering maximum 2h delay
                     if (
-                        len(open_files) == 2
+                        len(self.open_files) == 2
                         and (
                             dt.datetime.now(dt.timezone.utc) - timestamp
                         ).total_seconds()
                         > 7200
                     ):
-                        prev_day_filename = sorted(open_files.keys())[0]
-                        del open_files[prev_day_filename]
+                        prev_day_filename = sorted(self.open_files.keys())[0]
+                        self.open_files[prev_day_filename].close()
+                        del self.open_files[prev_day_filename]
 
 
-                    if path not in open_files:
+                    if path not in self.open_files or self.open_files[path][0].closed:
                         write_header = not path.exists()
                         fp = open(path, "a", newline="")
                         writer = csv.DictWriter(fp, fieldnames=list(data.keys()), quoting=csv.QUOTE_MINIMAL)
-                        open_files[path] = (fp, writer)
+                        self.open_files[path] = (fp, writer)
                         if write_header:
                             writer.writeheader()
 
-                    fp, writer = open_files[path]
+                    fp, writer = self.open_files[path]
                     writer.writerow(data)
+                    fp.flush()
 
                     delta_time = (dt.datetime.now() - start_time).total_seconds()
                     print(
@@ -120,3 +124,5 @@ class LivestreamConsumer:
             except Exception as e:
                 logger.warning(f"Protocol Error: {e}")
                 self.wait_for_timeout()
+            finally:
+                [fp.close() for _,(fp,_) in self.open_files.items()]
