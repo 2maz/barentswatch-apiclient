@@ -80,7 +80,8 @@ class LivestreamConsumer:
                         > 7200
                     ):
                         prev_day_filename = sorted(self.open_files.keys())[0]
-                        self.open_files[prev_day_filename].close()
+                        fp, _ = self.open_files[prev_day_filename]
+                        fp.close()
                         del self.open_files[prev_day_filename]
 
 
