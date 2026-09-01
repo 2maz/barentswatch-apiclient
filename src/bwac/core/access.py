@@ -49,7 +49,9 @@ class Access:
                 "grant_type": self.config.grant_type,
             },
             headers={"Content-Type": "application/x-www-form-urlencoded"},
+            timeout=30,
         )
+        response.raise_for_status()
 
         now = dt.datetime.now(tz=dt.timezone.utc)
         self._token = response.json()
