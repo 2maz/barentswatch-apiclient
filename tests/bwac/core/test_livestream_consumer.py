@@ -5,7 +5,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from bwac.core.livestream_consumer import LivestreamConsumer, open_files
+from bwac.core.livestream_consumer import LivestreamConsumer
 
 BASE = {
     "courseOverGround": 42.9,
@@ -28,7 +28,6 @@ def run_consumer(tmp_path: Path, messages: list[dict]) -> Path:
     fake_response.__enter__ = lambda s: s
     fake_response.__exit__ = lambda *a: None
 
-    open_files.clear()
     consumer = LivestreamConsumer()
     with patch("bwac.core.livestream_consumer.requests.Session") as SessionCls:
         SessionCls.return_value.get.return_value = fake_response
@@ -38,8 +37,9 @@ def run_consumer(tmp_path: Path, messages: list[dict]) -> Path:
             if "timeout after" not in str(e):
                 raise
 
-    for fp, _ in open_files.values():
-        fp.flush()
+    for fp, _ in consumer.open_files.values():
+        if not fp.closed:
+            fp.flush()
 
     out = tmp_path / "AIS_2026_04_20.csv"
     assert out.exists(), "the expected output .csv-file was not created"
@@ -71,3 +71,33 @@ def test_name_roundtrips(label, name, tmp_path):
         f"[{label}] name round-trip failed: got {rows[0]['name']!r}, expected {name!r}"
     )
     assert rows[0]["mmsi"] == str(BASE["mmsi"]), f"[{label}] mmsi corrupted"
+
+
+def test_retry_backoff_independent_of_token_timeout(monkeypatch):
+    """wait_for_timeout() must not sleep for anywhere near the token-expiry
+    window (self.timeout_in_s, typically ~3600s) after a stream/connection
+    error - it should use its own small, capped backoff counter."""
+    sleep_calls = []
+    monkeypatch.setattr(
+        "bwac.core.livestream_consumer.time.sleep", lambda s: sleep_calls.append(s)
+    )
+
+    consumer = LivestreamConsumer()
+    consumer.timeout_in_s = 3600  # set as get_data() would ahead of a real token
+
+    consumer.wait_for_timeout()
+
+    assert sleep_calls[0] < 60, (
+        f"retry backoff slept for {sleep_calls[0]}s - it is using the token "
+        "expiry window instead of an independent, capped backoff"
+    )
+
+
+def test_retry_backoff_is_capped(monkeypatch):
+    monkeypatch.setattr("bwac.core.livestream_consumer.time.sleep", lambda s: None)
+
+    consumer = LivestreamConsumer()
+    for _ in range(50):
+        consumer.wait_for_timeout()
+
+    assert consumer.retry_delay_s <= 60

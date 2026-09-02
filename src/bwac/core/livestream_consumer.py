@@ -15,6 +15,11 @@ logger = logging.getLogger(__name__)
 
 # Example data: b{"courseOverGround":268,"latitude":66.004573,"longitude":8.029767,"name":"TRANSOCEAN ENCOURAGE","rateOfTurn":-3,"shipType":90,"speedOverGround":0,"trueHeading":225,"navigationalStatus":3,"mmsi":258627000,"msgtime":"2025-07-24T10:14:50+00:00"}'
 
+last_day = None
+timeout_in_s = 0
+
+MAX_RETRY_DELAY_S = 60
+
 class LivestreamConsumer:
     timeout_in_s: int
     open_files: dict[str, any]
@@ -22,20 +27,26 @@ class LivestreamConsumer:
     def __init__(self):
         self.timeout_in_s = 0
         self.open_files = {}
+        # backoff delay used for retrying after connection/stream errors -
+        # kept separate from timeout_in_s, which tracks the (much larger)
+        # token-expiry driven reconnect window and must not be conflated
+        # with retry backoff (see wait_for_timeout).
+        self.retry_delay_s = 0
 
     def wait_for_timeout(self):
         """
         Create a timeout that increase on recurrent failure
         """
         # continued calls to timeout shall increase wait time
-        self.timeout_in_s += 5
-        time.sleep(self.timeout_in_s)
+        self.retry_delay_s = min(self.retry_delay_s + 5, MAX_RETRY_DELAY_S)
+        time.sleep(self.retry_delay_s)
 
     def reset_timeout(self):
         """
         Reset the length of the timeout after succesful reconnection
         """
         self.timeout_in_s = 0
+        self.retry_delay_s = 0
 
     def get_data(
         self, access_token: str, timeout_in_s: int = 3500, output_dir: Path | str = None
@@ -55,6 +66,10 @@ class LivestreamConsumer:
         start_time = dt.datetime.now()
         with session.get(
             url=BARENTS_WATCH_LIVE_AIS_URL, headers=headers, stream=True,
+            # (connect timeout, read timeout) - without this a stalled
+            # connection that never closes and never sends bytes blocks
+            # iter_lines() forever, bypassing the timeout_in_s check below
+            timeout=(10, 120),
             params={
                 "modelType": "Full",
                 "modelFormat": "Json",
@@ -119,7 +134,9 @@ class LivestreamConsumer:
                 self.reset_timeout()
             except RuntimeError as e:
                 if "timeout after" in f"{e}":
-                    pass
+                    # deliberate proactive reconnect ahead of token expiry -
+                    # the stream was healthy, so clear any retry backoff
+                    self.retry_delay_s = 0
                 else:
                     raise
             except Exception as e:
