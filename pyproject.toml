@@ -85,6 +85,7 @@ source = ["src"]
 
 [tool.ruff]
 line-length = 120
+lint.ignore = ["BLE001"]
 
 [tool.isort]
 multi_line_output = 8

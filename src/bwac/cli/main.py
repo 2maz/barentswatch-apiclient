@@ -61,7 +61,7 @@ def run():
 
     if hasattr(args, "active_subparser"):
         try:
-            getattr(args, "active_subparser").execute(args)
+            args.active_subparser.execute(args)
         except Exception as e:
             print(f"Error: {e}")
             if args.verbose:

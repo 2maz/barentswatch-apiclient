@@ -49,7 +49,7 @@ class LivestreamConsumer:
         self.retry_delay_s = 0
 
     def get_data(
-        self, access_token: str, timeout_in_s: int = 3500, output_dir: Path | str = None
+        self, access_token: str, timeout_in_s: int = 3500, output_dir: Path | str | None = None
     ):
         if output_dir is None:
             output_dir = Path()
@@ -63,7 +63,7 @@ class LivestreamConsumer:
         session = requests.Session()
         headers = {"Authorization": f"Bearer {access_token}"}
 
-        start_time = dt.datetime.now()
+        start_time = dt.datetime.now(tz=dt.timezone.utc)
         with session.get(
             url=BARENTS_WATCH_LIVE_AIS_URL, headers=headers, stream=True,
             # (connect timeout, read timeout) - without this a stalled
@@ -90,11 +90,11 @@ class LivestreamConsumer:
                     if (
                         len(self.open_files) == 2
                         and (
-                            dt.datetime.now(dt.timezone.utc) - timestamp
+                            dt.datetime.now(tz=dt.timezone.utc) - timestamp
                         ).total_seconds()
                         > 7200
                     ):
-                        prev_day_filename = sorted(self.open_files.keys())[0]
+                        prev_day_filename = min(self.open_files.keys())
                         fp, _ = self.open_files[prev_day_filename]
                         fp.close()
                         del self.open_files[prev_day_filename]
@@ -102,7 +102,7 @@ class LivestreamConsumer:
 
                     if path not in self.open_files or self.open_files[path][0].closed:
                         write_header = not path.exists()
-                        fp = open(path, "a", newline="")
+                        fp = open(path, "a", newline="") # noqa
                         writer = csv.DictWriter(fp, fieldnames=list(data.keys()), quoting=csv.QUOTE_MINIMAL)
                         self.open_files[path] = (fp, writer)
                         if write_header:
@@ -112,7 +112,7 @@ class LivestreamConsumer:
                     writer.writerow(data)
                     fp.flush()
 
-                    delta_time = (dt.datetime.now() - start_time).total_seconds()
+                    delta_time = (dt.datetime.now(tz=dt.timezone.utc) - start_time).total_seconds()
                     print(
                         f"Processed {idx} message - current day: {day} -- (token used since: {int(delta_time)} s, renewal after: {self.timeout_in_s} s)",
                         end="\r",
@@ -123,7 +123,7 @@ class LivestreamConsumer:
                             f"Consumer.get_data: timeout after {self.timeout_in_s} seconds"
                         )
 
-    def start(self, output_dir: Path | str = None):
+    def start(self, output_dir: Path | str | None = None):
         access = Access()
         while True:
             try:

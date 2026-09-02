@@ -90,14 +90,14 @@ class HistoricConsumer:
     def __init__(self):
         self.access = Access()
 
-    def query_all_mmsis(self, from_date: str, to_date: str):
+    def query_all_mmsis(self, from_date: str, to_date: str) -> list[str]:
         mmsis = set()
-        for name, area in NorwayAreas.items():
+        for area in NorwayAreas.values():
             areas_mmsis = self.query_mmsis_in_area(
                 from_date=from_date, to_date=to_date, area=area
             )
             mmsis = mmsis.union(areas_mmsis)
-        return sorted(list(mmsis))
+        return sorted(mmsis)
 
     def query_mmsis_in_area(
         self, from_date: str, to_date: str, area: list[list[float]]
@@ -165,7 +165,8 @@ class HistoricConsumer:
 
                 if path.exists():
                     f = subprocess.run(
-                        ["tail", "-n", "1", path], stdout=subprocess.PIPE
+                        ["tail", "-n", "1", path], stdout=subprocess.PIPE,
+                        check=True
                     )
                     last_msg_time = read_timestamp(
                         f.stdout.decode("UTF-8").strip().split(",")[msgtime_idx]

@@ -6,7 +6,6 @@ import re
 import time
 from pathlib import Path
 
-import pandas as pd
 import requests
 
 logger = logging.getLogger(__name__)
@@ -72,7 +71,7 @@ def get_data(access_token: str, timeout_in_s: int = 3500):
     session = requests.Session()
     headers = {"Authorization": f"Bearer {access_token}"}
 
-    start_time = dt.datetime.now()
+    start_time = dt.datetime.now(tz=dt.timezone.utc)
 
     with session.get(url=api_url, headers=headers, stream=True) as response:
         for idx, line in enumerate(response.iter_lines()):
@@ -86,12 +85,12 @@ def get_data(access_token: str, timeout_in_s: int = 3500):
                 except Exception as e:
                     logger.debug(e)
                     m = re.match(
-                        "(.*T[0-9]{2}:[0-9]{2}:[0-9]{2})(\.[0-9]*)?(\+[0-9]{2}:[0-9]{2})",
+                        r"(.*T[0-9]{2}:[0-9]{2}:[0-9]{2})(\.[0-9]*)?(\+[0-9]{2}:[0-9]{2})",
                         msg_time,
                     )
 
                     milliseconds = m.groups()[1]
-                    if milliseconds == None:
+                    if milliseconds is None:
                         milliseconds = "000000"
                     else:
                         # strip . at the beginning
@@ -118,7 +117,7 @@ def get_data(access_token: str, timeout_in_s: int = 3500):
                     and (dt.datetime.now(dt.timezone.utc) - timestamp).total_seconds()
                     > 7200
                 ):
-                    prev_day_filename = sorted(open_files.keys())[0]
+                    prev_day_filename = min(open_files.keys())[0]
                     del open_files[prev_day_filename]
 
                 if filename not in open_files:
@@ -126,7 +125,7 @@ def get_data(access_token: str, timeout_in_s: int = 3500):
                     if not Path(filename).exists():
                         write_header = True
 
-                    fp = open(filename, "a")
+                    fp = open(filename, "a") # noqa
                     open_files[filename] = fp
                     if write_header:
                         header = ",".join(data.keys())
@@ -135,7 +134,7 @@ def get_data(access_token: str, timeout_in_s: int = 3500):
                 values = ",".join([str(x) for x in data.values()])
                 open_files[filename].write(f"{values}\n")
 
-                delta_time = (dt.datetime.now() - start_time).total_seconds()
+                delta_time = (dt.datetime.now(tz=dt.timezone.utc) - start_time).total_seconds()
                 print(f"Processed {idx} message - current day: {day} -- (token used since: {int(delta_time)} s, renewal after: {timeout_in_s} s)", end="\r")
                 if  delta_time >= timeout_in_s:
                     raise RuntimeError(f"Timeout after {timeout_in_s} seconds")
