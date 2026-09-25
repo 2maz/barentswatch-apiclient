@@ -59,6 +59,11 @@ def run():
         print(__version__)
         sys.exit(0)
 
+    for existing_logger in [
+        logging.getLogger(x) for x in logging.root.manager.loggerDict
+    ]:
+        existing_logger.setLevel(logging.getLevelName(args.log_level))
+
     if hasattr(args, "active_subparser"):
         try:
             args.active_subparser.execute(args)
@@ -69,9 +74,6 @@ def run():
             sys.exit(-1)
     else:
         main_parser.print_help()
-
-    for logger in [logging.getLogger(x) for x in logging.root.manager.loggerDict]:
-        logger.setLevel(logging.getLevelName(args.log_level))
 
 
 if __name__ == "__main__":

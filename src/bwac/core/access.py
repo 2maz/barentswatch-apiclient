@@ -9,6 +9,9 @@ from bwac.core.constants import BARENTS_WATCH_TOKEN_URL
 
 logger = logging.getLogger(__name__)
 
+# renew a token this many seconds before it actually expires
+RENEWAL_MARGIN_S = 100
+
 
 class BarentsWatchSettings(BaseSettings):
     model_config = SettingsConfigDict(
@@ -63,8 +66,10 @@ class Access:
             raise RuntimeError("Access: not token available. Call .acquire() first")
 
     def requires_renewal(self):
+        # renew ahead of the expiry, so that a token is never handed out when
+        # it is about to be rejected
         now = dt.datetime.now(tz=dt.timezone.utc)
-        return (now - dt.timedelta(seconds=100)) > self.expiration
+        return (now + dt.timedelta(seconds=RENEWAL_MARGIN_S)) > self.expiration
 
     @property
     def access_token(self):
