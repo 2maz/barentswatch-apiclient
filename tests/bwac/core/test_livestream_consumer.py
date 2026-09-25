@@ -4,8 +4,13 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
+import requests
 
-from bwac.core.livestream_consumer import LivestreamConsumer
+from bwac.core.livestream_consumer import (
+    LivestreamConsumer,
+    StreamStalled,
+    TokenRenewalRequired,
+)
 
 BASE = {
     "courseOverGround": 42.9,
@@ -101,3 +106,81 @@ def test_retry_backoff_is_capped(monkeypatch):
         consumer.wait_for_timeout()
 
     assert consumer.retry_delay_s <= 60
+
+
+def stream_consumer(monkeypatch, lines: list[bytes], clock_step_s: int):
+    """LivestreamConsumer.get_data against a fake stream, with a fake clock
+    that advances by clock_step_s on every read of the monotonic time."""
+    ticks = iter(range(0, 10**6, clock_step_s))
+    monkeypatch.setattr(
+        "bwac.core.livestream_consumer.time.monotonic", lambda: next(ticks)
+    )
+
+    fake_response = MagicMock()
+    fake_response.iter_lines.return_value = iter(lines)
+    fake_response.__enter__ = lambda s: s
+    fake_response.__exit__ = lambda *a: None
+
+    consumer = LivestreamConsumer()
+    with patch("bwac.core.livestream_consumer.requests.Session") as SessionCls:
+        SessionCls.return_value.get.return_value = fake_response
+        consumer.get_data(access_token="dummy", timeout_in_s=3600)
+
+
+def test_keep_alive_only_stream_raises_stalled(monkeypatch, tmp_path):
+    """A stream that stays open but only sends keep-alive (empty) lines must
+    not block the loop forever - it has to be detected and reconnected."""
+    monkeypatch.chdir(tmp_path)
+
+    with pytest.raises(StreamStalled):
+        # 10s per line, far more keep-alives than the stall timeout covers
+        stream_consumer(monkeypatch, [b""] * 100, clock_step_s=10)
+
+
+def test_token_renewal_checked_on_keep_alive_lines(monkeypatch, tmp_path):
+    """The token expiry deadline must be checked on keep-alive lines as well,
+    otherwise a quiet stream keeps using a token beyond its lifetime."""
+    monkeypatch.chdir(tmp_path)
+
+    # one message per 50s keeps the stall detection satisfied; at 10s per line
+    # the 3600s deadline is crossed on line 359, which is a keep-alive
+    message = json.dumps(dict(BASE, name="TITANIC")).encode("utf-8")
+    lines = ([message] + [b""] * 4) * 72
+    assert len(lines) == 360 and lines[-1] == b"", (
+        "the deadline has to be crossed on the last, keep-alive line"
+    )
+
+    with pytest.raises(TokenRenewalRequired):
+        stream_consumer(monkeypatch, lines, clock_step_s=10)
+
+
+def test_error_response_is_not_treated_as_empty_stream(tmp_path):
+    """A non-200 response (e.g. 401 on an expired token) must raise instead of
+    returning silently, which would reconnect in a tight loop."""
+    fake_response = MagicMock()
+    fake_response.raise_for_status.side_effect = requests.HTTPError("401 Unauthorized")
+    fake_response.__enter__ = lambda s: s
+    fake_response.__exit__ = lambda *a: None
+
+    consumer = LivestreamConsumer()
+    with patch("bwac.core.livestream_consumer.requests.Session") as SessionCls:
+        SessionCls.return_value.get.return_value = fake_response
+        with pytest.raises(requests.HTTPError):
+            consumer.get_data(access_token="dummy", timeout_in_s=3600, output_dir=tmp_path)
+
+
+def test_request_uses_read_timeout():
+    """Without a read timeout a silent connection blocks iter_lines forever."""
+    fake_response = MagicMock()
+    fake_response.iter_lines.return_value = iter([])
+    fake_response.__enter__ = lambda s: s
+    fake_response.__exit__ = lambda *a: None
+
+    consumer = LivestreamConsumer()
+    with patch("bwac.core.livestream_consumer.requests.Session") as SessionCls:
+        SessionCls.return_value.get.return_value = fake_response
+        consumer.get_data(access_token="dummy", timeout_in_s=3600)
+
+    _, kwargs = SessionCls.return_value.get.call_args
+    connect_timeout, read_timeout = kwargs["timeout"]
+    assert connect_timeout > 0 and read_timeout > 0

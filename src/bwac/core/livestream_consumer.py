@@ -4,6 +4,7 @@ import json
 import logging
 import time
 from pathlib import Path
+from typing import Any
 
 import requests
 
@@ -20,9 +21,24 @@ timeout_in_s = 0
 
 MAX_RETRY_DELAY_S = 60
 
+CONNECT_TIMEOUT_S = 10
+# no bytes at all for this long -> requests raises ReadTimeout
+READ_TIMEOUT_S = 60
+# stream is alive (keep-alives arrive) but delivers no AIS message for this long
+STALL_TIMEOUT_S = 60
+
+
+class TokenRenewalRequired(RuntimeError):
+    """The access token used for the current stream is about to expire."""
+
+
+class StreamStalled(RuntimeError):
+    """The stream is still open, but stopped delivering AIS messages."""
+
+
 class LivestreamConsumer:
     timeout_in_s: int
-    open_files: dict[str, any]
+    open_files: dict[str, Any]
 
     def __init__(self):
         self.timeout_in_s = 0
@@ -41,15 +57,18 @@ class LivestreamConsumer:
         self.retry_delay_s = min(self.retry_delay_s + 5, MAX_RETRY_DELAY_S)
         time.sleep(self.retry_delay_s)
 
-    def reset_timeout(self):
+    def reset_retry_delay(self):
         """
-        Reset the length of the timeout after succesful reconnection
+        Reset the retry backoff after a succesful reconnection
         """
-        self.timeout_in_s = 0
         self.retry_delay_s = 0
 
     def get_data(
-        self, access_token: str, timeout_in_s: int = 3500, output_dir: Path | str | None = None
+        self,
+        access_token: str,
+        timeout_in_s: int = 3500,
+        output_dir: Path | str | None = None,
+        stall_timeout_in_s: int = STALL_TIMEOUT_S,
     ):
         if output_dir is None:
             output_dir = Path()
@@ -63,20 +82,30 @@ class LivestreamConsumer:
         session = requests.Session()
         headers = {"Authorization": f"Bearer {access_token}"}
 
-        start_time = dt.datetime.now(tz=dt.timezone.utc)
+        start_time = time.monotonic()
+        last_message_time = start_time
         with session.get(
             url=BARENTS_WATCH_LIVE_AIS_URL, headers=headers, stream=True,
             # (connect timeout, read timeout) - without this a stalled
             # connection that never closes and never sends bytes blocks
-            # iter_lines() forever, bypassing the timeout_in_s check below
-            timeout=(10, 120),
+            # iter_lines() forever, bypassing the checks below
+            timeout=(CONNECT_TIMEOUT_S, READ_TIMEOUT_S),
             params={
                 "modelType": "Full",
                 "modelFormat": "Json",
             }
         ) as response:
+            # an error response (e.g. 401 on an expired token) has no AIS
+            # messages - fail here instead of silently draining an empty body
+            response.raise_for_status()
+
             for idx, line in enumerate(response.iter_lines()):
+                now = time.monotonic()
                 if line:
+                    last_message_time = now
+                    # messages arrive, so the connection is established
+                    self.reset_retry_delay()
+
                     data = json.loads(line.decode("UTF-8"))
 
                     timestamp = read_timestamp(data["msgtime"])
@@ -100,47 +129,61 @@ class LivestreamConsumer:
                         del self.open_files[prev_day_filename]
 
 
-                    if path not in self.open_files or self.open_files[path][0].closed:
+                    if path not in self.open_files or self.open_files[str(path)][0].closed:
                         write_header = not path.exists()
                         fp = open(path, "a", newline="") # noqa
                         writer = csv.DictWriter(fp, fieldnames=list(data.keys()), quoting=csv.QUOTE_MINIMAL)
-                        self.open_files[path] = (fp, writer)
+                        self.open_files[str(path)] = (fp, writer)
                         if write_header:
                             writer.writeheader()
 
-                    fp, writer = self.open_files[path]
+                    fp, writer = self.open_files[str(path)]
                     writer.writerow(data)
                     fp.flush()
 
-                    delta_time = (dt.datetime.now(tz=dt.timezone.utc) - start_time).total_seconds()
                     print(
-                        f"Processed {idx} message - current day: {day} -- (token used since: {int(delta_time)} s, renewal after: {self.timeout_in_s} s)",
+                        f"Processed {idx} message - current day: {day} -- (token used since: {int(now - start_time)} s, renewal after: {self.timeout_in_s} s)",
                         end="\r",
                         flush=True,
                     )
-                    if delta_time >= self.timeout_in_s:
-                        raise RuntimeError(
-                            f"Consumer.get_data: timeout after {self.timeout_in_s} seconds"
-                        )
+
+                # keep-alive lines carry no message - the checks below must run
+                # for those as well, otherwise a stream that only sends
+                # keep-alives keeps this loop spinning forever: no reconnect,
+                # no token renewal and frozen progress output
+                if now - last_message_time >= stall_timeout_in_s:
+                    raise StreamStalled(
+                        f"Consumer.get_data: no message received for {int(now - last_message_time)} seconds"
+                    )
+                if now - start_time >= self.timeout_in_s:
+                    raise TokenRenewalRequired(
+                        f"Consumer.get_data: timeout after {self.timeout_in_s} seconds"
+                    )
 
     def start(self, output_dir: Path | str | None = None):
         access = Access()
         while True:
             try:
                 access.acquire()
+                # reconnect ahead of the actual expiry, so that the stream is
+                # never re-established with an already rejected token
                 self.get_data(
-                    access.access_token, access.expires_in, output_dir=output_dir
+                    access.access_token,
+                    max(access.expires_in - 100, 60),
+                    output_dir=output_dir,
                 )
-                self.reset_timeout()
-            except RuntimeError as e:
-                if "timeout after" in f"{e}":
-                    # deliberate proactive reconnect ahead of token expiry -
-                    # the stream was healthy, so clear any retry backoff
-                    self.retry_delay_s = 0
-                else:
-                    raise
+                # server closed the stream without an error
+                logger.warning("Stream closed by server - reconnecting")
+                self.wait_for_timeout()
+            except TokenRenewalRequired:
+                # deliberate proactive reconnect ahead of token expiry -
+                # the stream was healthy, so do not back off
+                self.reset_retry_delay()
             except Exception as e:
-                logger.warning(f"Protocol Error: {e}")
+                logger.warning(f"Stream error - reconnecting: {e}")
                 self.wait_for_timeout()
             finally:
-                [fp.close() for _,(fp,_) in self.open_files.items()]
+                for fp, _ in self.open_files.values():
+                    if not fp.closed:
+                        fp.close()
+                self.open_files.clear()
